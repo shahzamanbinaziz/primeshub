@@ -2,7 +2,7 @@ name: 3-Hour Ad Fetch
 on:
   schedule:
     - cron: '0 */3 * * *'
-  workflow_dispatch: # This allows you to click "Run workflow" manually
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,13 +16,11 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install Google Ad Manager Library
+      - name: Install and Run Fetcher
         run: |
           python -m pip install --upgrade pip
-          pip install google-ads-admanager pandas
-
-      - name: Run Fetcher Script
-        run: python fetch_gam_data.py
+          python -m pip install google-ads-admanager pandas
+          python fetch_gam_data.py
 
       - name: Commit and Push CSV
         run: |
