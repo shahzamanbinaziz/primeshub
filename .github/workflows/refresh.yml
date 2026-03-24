@@ -1,0 +1,26 @@
+name: 3-Hour Ad Fetch
+on:
+  schedule:
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install google-ads-admanager pandas
+      - name: Run Fetcher
+        run: python fetch_gam_data.py
+      - name: Commit and Push CSV
+        run: |
+          git config --global user.name "PrimeAdsBot"
+          git config --global user.email "bot@primeadshub.com"
+          git add prime_ads_report.csv
+          git commit -m "Auto-update data"
+          git push
