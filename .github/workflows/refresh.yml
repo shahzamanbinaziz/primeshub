@@ -14,13 +14,15 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.10' # Upgraded from 3.9
 
-      - name: Install and Run Fetcher
+      - name: Install Libraries
         run: |
           python -m pip install --upgrade pip
-          pip install googleads pandas
-          python fetch_gam_data.py
+          pip install googleads pandas google-auth
+
+      - name: Run Fetcher
+        run: python fetch_gam_data.py
 
       - name: Commit and Push CSV
         run: |
