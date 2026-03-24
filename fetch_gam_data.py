@@ -4,7 +4,7 @@ from googleads import ad_manager
 import tempfile
 import json
 
-# Configuration
+# --- CONFIGURATION ---
 NETWORK_CODE = '23327488191'
 KEY_DATA = {
   "type": "service_account",
@@ -14,31 +14,43 @@ KEY_DATA = {
   "client_email": "prime-ads-hub@prime-ads-hub.iam.gserviceaccount.com",
 }
 
-def fetch():
+def fetch_gam_report():
+    # Create temp JSON file for credentials
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp:
         json.dump(KEY_DATA, tmp)
         tmp_path = tmp.name
 
-    client = ad_manager.AdManagerClient.LoadFromStorage(tmp_path)
-    client.network_code = NETWORK_CODE
-    report_downloader = client.GetDataService('ReportService', version='v202408')
+    try:
+        # Auth using the exact 'googleads' structure
+        client = ad_manager.AdManagerClient.LoadFromStorage(tmp_path)
+        client.network_code = NETWORK_CODE
+        
+        report_downloader = client.GetDataService('ReportService', version='v202408')
 
-    report_job = {
-        'reportQuery': {
-            'dimensions': ['DATE', 'AD_UNIT_NAME', 'COUNTRY_NAME'],
-            'columns': ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS', 'AD_SERVER_CPM_AND_CPC_REVENUE'],
-            'dateRangeType': 'LAST_30_DAYS',
+        report_job = {
+            'reportQuery': {
+                'dimensions': ['DATE', 'AD_UNIT_NAME', 'COUNTRY_NAME'],
+                'columns': ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS', 'AD_SERVER_CPM_AND_CPC_REVENUE'],
+                'dateRangeType': 'LAST_7_DAYS',
+            }
         }
-    }
-    
-    report_job = report_downloader.runReportJob(report_job)
-    report_file = tempfile.NamedTemporaryFile(suffix='.csv.gz', delete=False)
-    report_downloader.downloadReport(report_job['id'], 'CSV_DUMP', report_file)
-    
-    df = pd.read_csv(report_file.name, compression='gzip')
-    df['Revenue'] = df['Column.AD_SERVER_CPM_AND_CPC_REVENUE'] / 1000000
-    df.to_csv('prime_ads_report.csv', index=False)
-    print("CSV Updated!")
+        
+        print("Starting Report Job...")
+        report_job = report_downloader.runReportJob(report_job)
+        
+        report_file = tempfile.NamedTemporaryFile(suffix='.csv.gz', delete=False)
+        report_downloader.downloadReport(report_job['id'], 'CSV_DUMP', report_file)
+        report_file.close()
+
+        # Process and save
+        df = pd.read_csv(report_file.name, compression='gzip')
+        df['Revenue'] = df['Column.AD_SERVER_CPM_AND_CPC_REVENUE'] / 1000000
+        df.to_csv('prime_ads_report.csv', index=False)
+        print("✅ prime_ads_report.csv created successfully!")
+
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 if __name__ == "__main__":
-    fetch()
+    fetch_gam_report()
