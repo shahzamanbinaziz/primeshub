@@ -8,21 +8,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install Correct Libraries
+      - name: Install and Run Fetcher
         run: |
           python -m pip install --upgrade pip
           pip install googleads pandas
-
-      - name: Run Fetcher Script
-        run: python fetch_gam_data.py
+          python fetch_gam_data.py
 
       - name: Commit and Push CSV
         run: |
