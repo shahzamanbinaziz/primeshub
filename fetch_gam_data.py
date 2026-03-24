@@ -1,11 +1,14 @@
 import os
 import pandas as pd
-from googleads import ad_manager
+from googleads import ad_manager, oauth2
 import tempfile
 import json
 
 # --- CONFIGURATION ---
 NETWORK_CODE = '23327488191'
+APPLICATION_NAME = 'PrimeAdsHub_Reporting'
+
+# Your Service Account Details
 KEY_DATA = {
   "type": "service_account",
   "project_id": "prime-ads-hub",
@@ -14,19 +17,25 @@ KEY_DATA = {
   "client_email": "prime-ads-hub@prime-ads-hub.iam.gserviceaccount.com",
 }
 
-def fetch_gam_report():
-    # Create temp JSON file for credentials
+def fetch_gam_data():
+    # Save the key data to a temporary file
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp:
         json.dump(KEY_DATA, tmp)
-        tmp_path = tmp.name
+        key_file_path = tmp.name
 
     try:
-        # Auth using the exact 'googleads' structure
-        client = ad_manager.AdManagerClient.LoadFromStorage(tmp_path)
-        client.network_code = NETWORK_CODE
-        
+        # Create OAuth2 client manually to avoid "Configuration Missing" errors
+        oauth2_client = oauth2.GoogleServiceAccountClient(
+            key_file_path, oauth2.GetAPIScope('ad_manager'))
+
+        # Initialize the Ad Manager client
+        client = ad_manager.AdManagerClient(
+            oauth2_client, APPLICATION_NAME, NETWORK_CODE)
+
+        # Initialize the ReportService
         report_downloader = client.GetDataService('ReportService', version='v202408')
 
+        # Define the report
         report_job = {
             'reportQuery': {
                 'dimensions': ['DATE', 'AD_UNIT_NAME', 'COUNTRY_NAME'],
@@ -34,23 +43,29 @@ def fetch_gam_report():
                 'dateRangeType': 'LAST_7_DAYS',
             }
         }
-        
-        print("Starting Report Job...")
+
+        print("Starting Ad Manager Report Job...")
         report_job = report_downloader.runReportJob(report_job)
         
+        # Download the report
         report_file = tempfile.NamedTemporaryFile(suffix='.csv.gz', delete=False)
         report_downloader.downloadReport(report_job['id'], 'CSV_DUMP', report_file)
         report_file.close()
 
-        # Process and save
+        # Process and save the data
         df = pd.read_csv(report_file.name, compression='gzip')
+        # Convert micro-currency to standard
         df['Revenue'] = df['Column.AD_SERVER_CPM_AND_CPC_REVENUE'] / 1000000
+        
         df.to_csv('prime_ads_report.csv', index=False)
-        print("✅ prime_ads_report.csv created successfully!")
+        print("✅ Data successfully saved to prime_ads_report.csv")
 
+    except Exception as e:
+        print(f"❌ Error during fetch: {e}")
+        raise e
     finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        if os.path.exists(key_file_path):
+            os.remove(key_file_path)
 
 if __name__ == "__main__":
-    fetch_gam_report()
+    fetch_gam_data()
